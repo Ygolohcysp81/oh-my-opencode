@@ -20,7 +20,7 @@ bun install          # Install dependencies (NEVER use npm/yarn)
 bun run typecheck    # Type check only
 bun run build        # Full build: ESM + TypeScript declarations + JSON schema
 bun run rebuild      # Clean + build
-bun test             # Run all tests (100 test files)
+bun test             # Run all tests (137 test files)
 bun run build:schema # Rebuild config schema after modifying src/config/schema.ts
 ```
 
@@ -80,16 +80,16 @@ feature branches (your work)
 ```
 oh-my-opencode/
 ├── src/
-│   ├── agents/        # 11 AI agents (Sisyphus, Oracle, Librarian, etc.)
-│   ├── hooks/         # 34 lifecycle hooks
-│   ├── tools/         # 20+ tools (LSP, AST-Grep, delegation, etc.)
-│   ├── features/      # Background agents, Claude Code compat, skills
-│   ├── shared/        # 66 cross-cutting utilities
+│   ├── agents/        # 10 AI agents (Sisyphus, Oracle, Librarian, etc.)
+│   ├── hooks/         # 32 lifecycle hooks
+│   ├── tools/         # 14 tool directories (LSP, AST-Grep, delegation, etc.)
+│   ├── features/      # 17 feature modules (background agents, skills, etc.)
+│   ├── shared/        # 60 cross-cutting utilities
 │   ├── cli/           # CLI: install, doctor, run commands
 │   ├── mcp/           # Built-in MCPs: websearch, context7, grep_app
 │   ├── config/        # Zod schema and TypeScript types
-│   └── index.ts       # Main plugin entry point
-├── packages/          # 11 platform-specific binaries
+│   └── index.ts       # Main plugin entry point (868 lines)
+├── packages/          # Platform-specific binaries
 ├── script/            # Build utilities
 ├── docs/              # Documentation
 └── dist/              # Build output (ESM + .d.ts)
@@ -111,12 +111,12 @@ oh-my-opencode/
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `src/features/builtin-skills/skills.ts` | 1729 | Skill definitions |
-| `src/features/background-agent/manager.ts` | 1418 | Task lifecycle, concurrency |
-| `src/agents/prometheus-prompt.ts` | 1283 | Planning agent prompt |
-| `src/tools/delegate-task/tools.ts` | 1135 | Category-based delegation |
-| `src/index.ts` | 788 | Main plugin entry |
+| `src/features/background-agent/manager.ts` | 1507 | Task lifecycle, concurrency |
+| `src/agents/prometheus/` (directory) | 1492 | Planning agent prompt modules |
+| `src/tools/delegate-task/executor.ts` | 979 | Category-based delegation execution |
+| `src/index.ts` | 868 | Main plugin entry |
 | `src/hooks/atlas/index.ts` | 757 | Orchestrator hook |
+| `src/tools/delegate-task/constants.ts` | 527 | Delegation constants and categories |
 
 ---
 
@@ -173,16 +173,18 @@ export * from "./lsp";
 
 ### Agent Models
 
-| Agent | Model | Purpose |
-|-------|-------|---------|
-| **Sisyphus** | claude-opus-4-5 | Primary orchestrator (fallback: kimi-k2.5 → glm-4.7 → gpt-5.2-codex) |
-| **Hephaestus** | gpt-5.2-codex | Autonomous deep worker ("The Legitimate Craftsman") |
-| **Atlas** | claude-sonnet-4-5 | Master orchestrator |
-| **oracle** | gpt-5.2 | Consultation, debugging (read-only) |
-| **librarian** | glm-4.7 | Docs, GitHub search |
-| **explore** | grok-code-fast-1 | Fast codebase grep |
-| **multimodal-looker** | gemini-3-flash | PDF/image analysis |
-| **Prometheus** | claude-opus-4-5 | Strategic planning |
+| Agent | Primary Model | Fallback Chain | Purpose |
+|-------|---------------|----------------|---------|
+| **Sisyphus** | claude-opus-4-5 | kimi-k2.5 → glm-4.7 | Primary orchestrator |
+| **Hephaestus** | gpt-5.2-codex | (requires gpt-5.2-codex) | Autonomous deep worker |
+| **Atlas** | claude-sonnet-4-5 | - | Master orchestrator |
+| **Prometheus** | claude-opus-4-5 | kimi-k2.5 → gpt-5.2 → gemini-3-pro | Strategic planning |
+| **Metis** | claude-opus-4-5 | kimi-k2.5 → gpt-5.2 → gemini-3-pro | Task analysis |
+| **Momus** | - | - | Critic/reviewer |
+| **Oracle** | gpt-5.2 | gemini-3-pro → claude-opus-4-5 | Consultation, debugging (read-only) |
+| **Librarian** | glm-4.7 | claude-sonnet-4-5 | Docs, GitHub search |
+| **Explore** | grok-code-fast-1 | claude-haiku-4-5 → gpt-5-nano | Fast codebase grep |
+| **Multimodal-Looker** | gemini-3-flash | gpt-5.2 → glm-4.6v → kimi-k2.5 | PDF/image analysis |
 
 ### Tool Restrictions
 
@@ -197,28 +199,29 @@ export * from "./lsp";
 
 1. Create `src/agents/my-agent.ts` with factory + metadata
 2. Add to `agentSources` in `src/agents/utils.ts`
-3. Update `AgentNameSchema` in `src/config/schema.ts`
-4. Run `bun run build:schema`
+3. Update `BuiltinAgentNameSchema` in `src/config/schema.ts`
+4. Add model requirements to `src/shared/model-requirements.ts`
+5. Run `bun run build:schema`
 
 ```typescript
 // src/agents/my-agent.ts
-import type { AgentConfig } from "./types";
+import type { AgentConfig } from "@opencode-ai/sdk";
+import type { AgentFactory, AgentPromptMetadata } from "./types";
 
-export const myAgentMetadata = {
+export const MY_AGENT_PROMPT_METADATA: AgentPromptMetadata = {
   category: "utility",
-  cost: "low",
-  triggers: ["keyword"],
+  cost: "CHEAP",
+  triggers: [{ domain: "Example", trigger: "When to use" }],
 };
 
-export function createMyAgent(model: string): AgentConfig {
-  return {
-    name: "my-agent",
-    model,
-    description: "What this agent does",
-    prompt: `Your agent's system prompt`,
-    temperature: 0.1, // Max 0.3 for code agents
-  };
-}
+export const createMyAgent: AgentFactory = (model: string): AgentConfig => ({
+  name: "my-agent",
+  model,
+  description: "What this agent does",
+  prompt: `Your agent's system prompt`,
+  temperature: 0.1, // Max 0.3 for code agents
+});
+createMyAgent.mode = "subagent";
 ```
 
 ---
@@ -234,6 +237,18 @@ export function createMyAgent(model: string): AgentConfig {
 | `PostToolUse` | `tool.execute.after` | No | Truncate output, error recovery |
 | `Stop` | `session.stop` | No | Auto-continue, notifications |
 | `onSummarize` | Compaction | No | Preserve state |
+
+### Registered Hooks (39 total)
+
+Key hooks defined in `HookNameSchema`:
+- `todo-continuation-enforcer` - Task completion enforcement
+- `context-window-monitor` - Token usage monitoring
+- `session-recovery` - Session state recovery
+- `keyword-detector` - Trigger word detection
+- `atlas` - Orchestrator coordination
+- `think-mode` - Extended thinking mode
+- `claude-code-hooks` - Claude Code compatibility
+- `delegate-task-retry` - Retry failed delegations
 
 ### Adding a Hook
 
@@ -269,6 +284,28 @@ export function createMyHook(input: PluginInput) {
 | Task | task_create, task_get, task_list, task_update | Factory |
 | Agent | delegate_task, call_omo_agent | Factory |
 | Background | background_output, background_cancel | Factory |
+| Skill | skill, skill_mcp | Factory |
+| Interactive | interactive_bash | Factory |
+
+### Tool Directories (14)
+
+```
+src/tools/
+├── ast-grep/         # AST-based search and replace
+├── background-task/  # Background agent management
+├── call-omo-agent/   # Direct agent invocation
+├── delegate-task/    # Category-based task delegation
+├── glob/             # File pattern matching
+├── grep/             # Content search
+├── interactive-bash/ # Interactive shell sessions
+├── look-at/          # File/image viewing
+├── lsp/              # Language Server Protocol tools
+├── session-manager/  # Session operations
+├── skill/            # Skill activation
+├── skill-mcp/        # MCP-based skills
+├── slashcommand/     # Slash command handling
+└── task/             # Task management
+```
 
 ### Tool Patterns
 
@@ -316,6 +353,27 @@ export const my_mcp = {
 
 ---
 
+## Feature Modules (17)
+
+Located in `src/features/`:
+
+| Feature | Purpose |
+|---------|---------|
+| `background-agent/` | Parallel background task execution |
+| `boulder-state/` | Persistent state management |
+| `builtin-commands/` | Built-in slash commands |
+| `builtin-skills/` | Agent skills (playwright, git-master, etc.) |
+| `claude-code-*` | Claude Code compatibility layers |
+| `claude-tasks/` | Task management |
+| `context-injector/` | Context injection utilities |
+| `mcp-oauth/` | OAuth for MCP servers |
+| `opencode-skill-loader/` | Skill loading system |
+| `skill-mcp-manager/` | Skill MCP lifecycle |
+| `task-toast-manager/` | Task notifications |
+| `tmux-subagent/` | Tmux-based agent isolation |
+
+---
+
 ## Testing
 
 ### TDD Required
@@ -329,7 +387,7 @@ export const my_mcp = {
 
 - Test files: `*.test.ts` alongside source
 - BDD comments: `//#given`, `//#when`, `//#then`
-- 100 test files in the codebase
+- 137 test files in the codebase
 
 ### Running Tests
 
@@ -416,13 +474,17 @@ Import from `src/shared`:
 |---------|---------|
 | `logger.ts` | File-based logging (`/tmp/oh-my-opencode.log`) |
 | `dynamic-truncator.ts` | Token-aware context window management |
-| `model-resolver.ts` | 3-step model resolution |
+| `model-resolver.ts` | Model resolution pipeline |
+| `model-requirements.ts` | Agent model fallback chains |
+| `model-availability.ts` | Check model/provider availability |
 | `jsonc-parser.ts` | JSONC parsing with comments |
 | `frontmatter.ts` | YAML frontmatter extraction |
 | `data-path.ts` | XDG-compliant storage resolution |
 | `permission-compat.ts` | Agent tool restriction enforcement |
 | `system-directive.ts` | System message prefix and filtering |
 | `deep-merge.ts` | Recursive object merging (proto-pollution safe) |
+| `migration.ts` | Config migration utilities |
+| `shell-env.ts` | Shell environment detection |
 
 ---
 
