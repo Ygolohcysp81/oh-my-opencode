@@ -1,0 +1,18 @@
+{
+  "name": "connect-apps",
+  "description": "Connect external apps and services via MCP servers for enhanced AI-assisted development. Provides web search (Exa), documentation lookup (Context7), and GitHub code search (grep.app).",
+  "version": "1.0.0",
+  "author": {
+    "name": "YeonGyu-Kim"
+  },
+  "repository": "https://github.com/code-yeongyu/oh-my-opencode",
+  "license": "SUL-1.0",
+  "keywords": [
+    "mcp",
+    "web-search",
+    "documentation",
+    "github",
+    "external-apps",
+    "oh-my-opencode"
+  ]
+}
