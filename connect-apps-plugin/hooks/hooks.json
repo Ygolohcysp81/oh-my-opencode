@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "External app connections are available via the connect-apps plugin: web search (Exa), documentation (Context7), and GitHub code search (grep.app). Use /connect-apps:search-web, /connect-apps:search-docs, or /connect-apps:search-github commands, or invoke the connect-app skill when external information is needed."
+          }
+        ]
+      }
+    ]
+  }
+}

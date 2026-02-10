@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "websearch": {
+      "type": "sse",
+      "url": "https://mcp.exa.ai/mcp?tools=web_search_exa",
+      "env": {
+        "EXA_API_KEY": "${EXA_API_KEY}"
+      }
+    },
+    "context7": {
+      "type": "sse",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "grep-app": {
+      "type": "sse",
+      "url": "https://mcp.grep.app"
+    }
+  }
+}
